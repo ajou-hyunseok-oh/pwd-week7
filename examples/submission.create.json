@@ -1,0 +1,10 @@
+{
+  "restaurantName": "제보 실습 식당",
+  "category": "분식",
+  "location": "아주대학교 후문",
+  "priceRange": "5,000-8,000원",
+  "recommendedMenu": ["김밥", "떡볶이"],
+  "review": "제보 승인 후 맛집 목록에 등록되는지 확인합니다.",
+  "submitterName": "실습생",
+  "submitterEmail": "student@example.com"
+}

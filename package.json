@@ -1,24 +1,43 @@
 {
-  "name": "pwd-week5",
+  "name": "pwd-week7",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "test": "jest --runInBand",
-    "test:watch": "jest --watch --runInBand"
+    "dev": "tsx watch server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "test": "jest --runInBand && npm run test:sql",
+    "test:sql": "node --import tsx --test tests/schema.postgres.ts",
+    "test:watch": "jest --watch --runInBand",
+    "db:check": "node --import tsx scripts/check-db.ts",
+    "seed:generate": "node --import tsx scripts/generate-seed.ts",
+    "key:generate": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('hex'))\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "mongoose": "^8.18.2"
+    "express": "^5.1.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.14",
+    "@types/cors": "^2.8.19",
+    "@types/emscripten": "^1.41.6",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.20.5",
+    "@types/supertest": "^6.0.3",
     "jest": "^29.7.0",
-    "mongodb-memory-server": "^10.2.1",
-    "nodemon": "^3.1.7",
-    "supertest": "^7.0.0"
-  }
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.4.15",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "description": "7주차: TypeScript Express Foodmap API with Supabase PostgreSQL"
 }
