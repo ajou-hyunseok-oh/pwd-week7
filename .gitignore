@@ -41,6 +41,10 @@ build/Release
 node_modules/
 jspm_packages/
 
+# 7주차 실습용 클라이언트 사본과 원본 백업
+/client/
+/.week7-backups/
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 

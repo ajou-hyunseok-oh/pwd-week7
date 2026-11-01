@@ -30,6 +30,22 @@ Service가 SDK로 DB 요청을 보내고, 조회한 행을 Model이 API 응답 �
 
 맛집 조회와 제보 등록은 공개 API입니다. 맛집 관리, 제보 개인정보 조회·승인·삭제는 별도의 Express 관리자 토큰으로 보호합니다. **Supabase Secret key를 HTTP 요청 도구나 React에 전달하지 않습니다.**
 
+## 6주차를 바탕으로 7주차에서 할 일
+
+6주차의 `pwd-week6` 서버 폴더는 그대로 둡니다. 이 저장소에는 6주차의 TypeScript·Express 구조를 바탕으로 수정한 7주차 서버가 이미 들어 있습니다. 학생은 아래 순서로 **7주차 폴더에서 바뀐 내용을 확인하고 실행**합니다. 6주차 파일을 열어 비교해도 되지만, 6주차에 코드를 추가하거나 덮어쓸 필요는 없습니다.
+
+| 순서 | 7주차에서 할 일 | 확인할 파일·장소 |
+|---|---|---|
+| 1 | 관리형 PostgreSQL 프로젝트와 테이블 만들기 | Supabase 대시보드, [schema.sql](supabase/schema.sql) |
+| 2 | 지난주 맛집 3건을 새 DB에 입력하기 | [seed.sql](supabase/seed.sql) |
+| 3 | 서버가 사용할 URL·키 설정하기 | 7주차 `.env`, [연결 설정](src/config/supabase.ts) |
+| 4 | 메모리 조회·등록을 DB 요청으로 바꾼 구조 이해하기 | [맛집 서비스](src/services/restaurants.service.ts), [모델](src/models/restaurant.model.ts) |
+| 5 | 제보와 승인, 관리자 요청 확인하기 | [제보 서비스](src/services/submissions.service.ts), [라우트](src/routes/submissions.routes.ts) |
+| 6 | 기존 React를 7주차 안으로 복사해 서버에 연결하기 | `client/`, [클라이언트 연동 자료](integration/client/src) |
+| 7 | 저장·재시작·조회 결과 확인하기 | 10~13단계와 15단계 |
+
+아래 0~13단계는 DB와 서버를 실제로 설정하고, 14단계 뒤의 **7주차 코드 읽기**에서 변경된 코드의 역할을 짚습니다. 이어서 15단계에서 5주차 React를 7주차의 `client/`로 복사해 연동합니다. 제공된 서버 코드를 한 줄씩 다시 입력하는 대신 파일을 열어 설명과 비교합니다.
+
 ## 0. 실습 폴더와 프로그램 준비
 
 필요한 것은 GitHub 계정, Node.js 24.x LTS, npm, VS Code입니다. 7주차 서버는 Node.js 22 이상을 지원하지만 기존 5주차 React의 package.json은 24.x를 지정하므로, 두 프로젝트를 함께 실행할 때는 24.x를 사용합니다. Supabase 계정은 1단계에서 만듭니다. Node.js가 없다면 [공식 다운로드](https://nodejs.org/en/download)에서 24.x LTS 버전을 설치하고 VS Code를 다시 엽니다. npm은 Node.js와 함께 설치됩니다. 로컬 PostgreSQL 설치나 Supabase CLI, Docker는 필수가 아닙니다. SDK의 Node.js 요구사항은 [공식 패키지 정보](https://registry.npmjs.org/@supabase/supabase-js/latest)에서 확인할 수 있습니다.
@@ -564,28 +580,92 @@ VS Code에서 템플릿을 `requests/foodmap.local.http`로 복사하고 파일 
 
 6주차의 /sync-demo와 /reset-demo는 이번 서버에서 제공하지 않습니다. DB 실습 중 전체 데이터를 HTTP로 초기화하는 기능도 제공하지 않습니다.
 
+## 7주차 코드 읽기: 서버에 추가된 작업
+
+앞 단계에서 DB와 서버를 실행했다면, 이제 VS Code에서 **7주차 폴더**의 다음 파일을 차례로 열어 보세요. 코드는 이미 준비되어 있으므로 직접 다시 입력하지 않아도 됩니다.
+
+### 1. 테이블과 데이터의 형태 정하기
+
+[supabase/schema.sql](supabase/schema.sql)에서 `submissions`와 `restaurants` 테이블을 만듭니다. `id`는 PostgreSQL이 자동 생성하고, 각 필수 열에는 `not null`을 적용합니다. `restaurants.submission_id`는 승인된 제보와 맛집을 연결합니다. 직접 등록한 맛집에는 제보가 없을 수 있습니다.
+
+[supabase/seed.sql](supabase/seed.sql)은 테이블이 비어 있을 때 지난주 맛집 3건을 넣습니다. 서버를 실행할 때마다 DB를 초기화하지 않으므로 이후 추가한 데이터가 유지됩니다.
+
+### 2. Express에서 Supabase 클라이언트 만들기
+
+[src/config/supabase.ts](src/config/supabase.ts)의 `getSupabase()`는 7주차 서버 `.env`에서 `SUPABASE_URL`과 `SUPABASE_SECRET_KEY`를 읽어 클라이언트를 만듭니다. 6주차의 메모리 배열 대신 이 클라이언트가 Supabase Data API에 요청을 보냅니다.
+
+```ts
+client = createClient<Database>(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+});
+```
+
+같은 파일의 `checkDatabase()`는 두 테이블을 실제로 조회합니다. [server.ts](server.ts)는 이 조회가 성공한 다음 Express를 시작합니다. 따라서 `/health`는 서버 상태, 관리자 요청인 `/health/db`는 DB 조회 상태를 보여줍니다.
+
+### 3. 맛집 서비스의 저장 방법 바꾸기
+
+[src/services/restaurants.service.ts](src/services/restaurants.service.ts)에서 `getAllRestaurants()`를 찾아보세요. 6주차에서는 메모리의 `restaurantCache`를 복사했지만, 7주차에서는 매번 DB의 `restaurants`를 조회합니다.
+
+```ts
+const { data, error } = await getSupabase()
+  .from('restaurants')
+  .select('*')
+  .order('id');
+if (error) throwDatabaseError(error);
+return (data ?? []).map((row) => new Restaurant(row));
+```
+
+같은 파일의 `createRestaurant()`은 입력을 검사한 뒤 `insert()`를 호출합니다. `id`를 직접 계산하지 않고, DB가 생성한 행을 받아 반환합니다. 수정과 삭제도 같은 서비스 파일에서 DB에 요청합니다.
+
+### 4. 기존 React 응답 형태 유지하기
+
+[src/models/restaurant.model.ts](src/models/restaurant.model.ts)는 DB의 `price_range`, `recommended_menu`를 기존 화면이 사용하는 `priceRange`, `recommendedMenu`로 바꿉니다. [맛집 라우트](src/routes/restaurants.routes.ts)와 컨트롤러는 지난주와 같은 `/api/restaurants` 경로 및 `{ data: ... }` 응답을 사용합니다.
+
+관리자 등록·수정·삭제 라우트에는 `requireAdmin`을 추가했습니다. Supabase Secret key는 Express에만 두고, 관리자 요청은 별도의 `ADMIN_API_KEY`로 확인합니다.
+
+### 5. 제보 승인을 한 번에 처리하기
+
+[src/services/submissions.service.ts](src/services/submissions.service.ts)는 제보 등록·조회·상태 변경을 DB로 보냅니다. `status: 'approved'` 요청은 SQL의 `approve_submission` 함수를 호출합니다. 이 함수는 맛집을 만든 뒤 제보를 승인하며, 중간에 실패하면 두 작업을 함께 되돌립니다. 같은 제보를 다시 승인해도 맛집을 중복 생성하지 않습니다.
+
+### 6. 기존 React 연결하기
+
+[integration/client/src/services/api.ts](integration/client/src/services/api.ts)는 기존 React 화면이 호출하던 API 함수들을 Express HTTP 요청으로 연결합니다. `SubmissionsPage.tsx`의 승인 버튼은 맛집 생성 요청과 승인 요청을 각각 보내지 않고 승인 요청을 한 번만 보냅니다.
+
+다음 15단계에서는 기존 5주차 React를 읽어 **7주차의 `client/`에 복사**하고 위 연동 파일을 적용합니다. 기존 주차 폴더에 직접 수정할 필요는 없습니다.
+
 ## 15. 기존 5~6주차 React 클라이언트를 7주차 서버에 연결
 
 이 단계는 **실제 지난 실습 화면**에서 맛집 조회·제보·관리까지 확인합니다. 5주차 원본 React와 6주차 README의 API 모듈 적용본 모두 사용할 수 있습니다. `pwd-week6` 서버 폴더는 수정할 필요가 없습니다.
 
-### 15-1. 클라이언트 연동 파일 적용
+### 15-1. 기존 React를 7주차 폴더에 복사하고 연동
 
-1. 기존 React 개발 서버가 켜져 있다면 해당 터미널에서 Ctrl+C로 종료합니다.
-2. **7주차 서버 폴더의 터미널**에서 다음 명령을 실행합니다. `../pwd-week5`는 7주차 폴더와 5주차 폴더가 같은 상위 폴더에 있을 때의 예입니다.
+기존 5주차 React 폴더는 복사할 때 읽기만 합니다. 기존 6주차 서버 폴더도 수정하지 않습니다. React와 7주차 서버를 각각 실행할 수 있도록 7주차의 `client/`에 별도 사본을 만듭니다.
+
+1. **7주차 서버 폴더의 터미널**에서 다음 명령을 실행합니다. `../pwd-week5`는 7주차 폴더와 5주차 React 폴더가 같은 상위 폴더에 있을 때의 예입니다.
 
 ```sh
-node scripts/install-client.mjs "../pwd-week5"
+node scripts/copy-client.mjs "../pwd-week5"
 ```
 
-5주차 폴더가 다른 위치에 있다면 따옴표 안을 실제 **5주차 React 프로젝트 루트**의 절대 경로로 바꿉니다. 해당 폴더에 React의 package.json과 `src/services/api.ts`가 있어야 합니다. 예를 들어 Windows PowerShell에서는 `node scripts/install-client.mjs "C:\Users\본인\Projects\pwd-week5"`처럼 입력합니다.
+5주차 폴더가 다른 위치에 있다면 따옴표 안을 실제 **5주차 React 프로젝트 루트**의 절대 경로로 바꿉니다. 해당 폴더에 React의 package.json과 `src/services/api.ts`가 있어야 합니다. 예를 들어 Windows PowerShell에서는 `node scripts/copy-client.mjs "C:\Users\본인\Projects\pwd-week5"`처럼 입력합니다.
 
-설치기는 교체할 원본 파일을 5주차 폴더 **옆의 별도 백업 폴더**에 보관하고 백업 위치를 출력합니다. 설치 전 직접 수정한 코드도 백업됩니다. 출력된 경로를 기록해 두세요. `src/services/api.ts`, `src/pages/AdminPage.tsx`, `src/pages/SubmissionsPage.tsx`, `src/components/SubmitRestaurant.tsx`를 교체하고 `src/components/AdminGate.tsx`를 추가합니다. 같은 파일을 다시 적용하면 변경 없이 종료합니다. 6주차에서 만들어 둔 `api.local.ts`는 삭제하지 않습니다.
+복사기는 기존 소스는 읽기만 하며 `.git`, `node_modules`, `dist`, `coverage`, `.env`로 시작하는 파일은 가져오지 않습니다. 기존 7주차 `client/`가 있으면 덮어쓰지 않고 중단합니다. 이미 이번 실습에서 만든 `client/`라면 복사를 다시 실행하지 말고 다음 설치 단계를 진행합니다. 원본 안에 심볼릭 링크가 있으면 경로를 확인하도록 중단합니다.
 
-설치기는 5주차 프로젝트를 변경합니다. 잘못된 폴더를 지정하면 적용하지 않습니다. 원래 코드로 되돌리려면 출력된 백업 폴더 안의 각 파일을 같은 상대 경로에 복사하고, 설치 전에 없었던 `src/components/AdminGate.tsx`를 삭제합니다. 설치 전 이미 AdminGate.tsx가 있었다면 백업에서 해당 파일도 복구합니다. `.env.local`은 설치기가 수정하지 않으므로 직접 변경한 환경변수는 별도로 되돌립니다.
+2. 같은 **7주차 서버 폴더의 터미널**에서 복사한 `client/`에 연동 파일을 적용합니다.
+
+```sh
+node scripts/install-client.mjs "./client"
+```
+
+설치기는 사본의 기존 파일을 7주차의 `.week7-backups/`에 백업하고 위치를 출력합니다. 출력된 경로를 기록해 두세요. 사본의 `src/services/api.ts`, `src/pages/AdminPage.tsx`, `src/pages/SubmissionsPage.tsx`, `src/components/SubmitRestaurant.tsx`를 교체하고 `src/components/AdminGate.tsx`를 추가합니다. 같은 파일을 다시 적용하면 변경 없이 종료합니다. 6주차 실습에서 사본에 가져온 `api.local.ts`가 있다면 삭제하지 않습니다.
+
+3. 7주차 폴더 안에 `client/package.json`과 `client/src/components/AdminGate.tsx`가 생겼는지 확인합니다.
+
+7주차 `client/`와 `.week7-backups/`는 제공된 .gitignore에서 제외합니다. 되돌릴 때는 출력된 백업의 각 파일을 `client/`의 같은 상대 경로로 복사합니다. 설치 전에 없었던 `client/src/components/AdminGate.tsx`는 삭제합니다. 설치 전 이미 해당 파일이 있었다면 백업에서 복구합니다. **원본 5·6주차 폴더를 편집할 필요는 없습니다.**
 
 ### 15-2. React 환경변수와 실행
 
-VS Code에서 **5주차 React 프로젝트 폴더**를 별도 창으로 열고, 그 폴더의 package.json 옆 `.env.local`을 만듭니다. 이미 파일이 있다면 다른 설정은 두고 VITE_API_BASE_URL만 추가 또는 수정합니다.
+VS Code에서 **7주차의 `client/` 폴더**를 별도 창으로 열고, 그 폴더의 package.json 옆 `.env.local`을 만듭니다. 이 파일은 기존 5주차의 환경변수 파일과 별개입니다. 이미 파일이 있다면 다른 설정은 두고 VITE_API_BASE_URL만 추가 또는 수정합니다.
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:3000
@@ -593,7 +673,7 @@ VITE_API_BASE_URL=http://127.0.0.1:3000
 
 이 값은 7주차 Express 서버 주소입니다. `/api/restaurants`는 붙이지 않습니다. 이 파일에는 Supabase Secret key나 ADMIN_API_KEY를 넣지 않습니다. [Vite 환경변수](https://vite.dev/guide/env-and-mode)
 
-5주차 React 폴더에서 다음을 실행합니다. 서버의 터미널 A는 `npm run dev`로 계속 켜 둡니다.
+7주차 `client/` 폴더의 새 터미널에서 다음을 실행합니다. 서버의 터미널 A는 `npm run dev`로 계속 켜 둡니다.
 
 ```sh
 npm ci --include=dev
@@ -640,7 +720,7 @@ Render가 제공하는 PORT를 서버가 읽습니다. 로컬 .env의 PORT=3000�
 5. 환경변수 저장 시 `Save, rebuild, and deploy`를 선택합니다. Save only는 다음 배포 전까지 새 값을 적용하지 않습니다.
 6. 배포 로그에서 DB 연결 성공과 서버 시작 메시지를 확인합니다.
 7. 공개 주소의 /health와 /api/restaurants를 엽니다. /health/db는 로컬과 같이 관리자 헤더를 붙여 확인합니다.
-8. React 배포 환경의 VITE_API_BASE_URL을 실제 Render HTTPS 주소로 바꾸고 프론트엔드를 재빌드/재배포합니다.
+8. 별도로 React까지 배포하려면 7주차 `client/` 사본을 새 프론트엔드 저장소에 올리고, 배포 환경의 VITE_API_BASE_URL을 실제 Render HTTPS 주소로 설정한 뒤 빌드합니다. `client/`는 7주차 서버 저장소에서 Git으로 추적하지 않으므로 서버 저장소만 배포해도 React가 함께 배포되지는 않습니다. React 배포는 선택 사항이며 로컬 확인은 15단계로 완료됩니다.
 
 [현재 Render 환경변수 저장 절차](https://render.com/docs/configure-environment-variables)
 
@@ -677,7 +757,7 @@ Render가 제공하는 PORT를 서버가 읽습니다. 로컬 .env의 PORT=3000�
 | 포트가 이미 사용 중 / EADDRINUSE | 기존 서버를 Ctrl+C로 종료하거나 PORT 변경 후 React 주소도 맞춤 |
 | Render에서 포트 감지 실패 | HOST=0.0.0.0 및 제공된 PORT 사용 여부 확인 |
 | CORS 오류 | 실제 React 출처의 프로토콜·호스트·포트가 CORS_ORIGINS와 일치하는지 확인 후 서버 재시작 |
-| React에서 제보가 DB에 보이지 않음 | 15-1 설치기를 5주차 폴더에 적용하고 Vite를 재시작했는지 확인 |
+| React에서 제보가 DB에 보이지 않음 | 15-1 복사기와 설치기를 순서대로 실행하고 7주차 client에서 Vite를 재시작했는지 확인 |
 | VITE_API_BASE_URL 설정 오류 | React 프로젝트 루트의 .env.local에 서버 주소를 넣고 React 개발 서버를 재시작 |
 | React 관리자 키 입력 후 다시 입력 화면으로 돌아감 | SUPABASE_SECRET_KEY가 아닌 서버 .env의 ADMIN_API_KEY를 입력했는지 확인 |
 | 오래 사용하지 않은 무료 프로젝트가 응답하지 않음 | Supabase에서 프로젝트 일시 중지 상태와 복원 기능 확인 |
@@ -704,8 +784,10 @@ supabase/
 scripts/
   check-db.ts                   실제 원격 DB 읽기 진단
   generate-seed.ts               JSON에서 로컬 seed.sql 재생성
-  install-client.mjs             기존 React 파일 백업 및 연동 적용
+  copy-client.mjs                이전 React를 7주차 client/로 복사
+  install-client.mjs             복사본 백업 및 7주차 연동 적용
 integration/client/             기존 React에 적용할 7주차 연동 파일
+client/                         15단계에서 생성하는 React 작업 사본 (Git 제외)
 examples/                       curl에 사용할 JSON 요청 본문
 requests/foodmap.http            선택 사용 가능한 HTTP 요청 템플릿
 tests/                          실제 클라우드 접속 없는 자동 검사
@@ -758,5 +840,5 @@ npm run test:sql
 - [ ] 서버 재시작 후 등록 데이터 유지 확인
 - [ ] 제보 등록 → 관리자 승인 → 연결된 맛집 생성 확인
 - [ ] 같은 승인 재요청 시 맛집 중복 생성 없음 확인
-- [ ] 15단계의 기존 React 화면에서 목록·제보·관리·승인 확인
+- [ ] 7주차 client/ 사본에서 목록·제보·관리·승인 확인
 - [ ] .env와 로컬 요청 파일이 Git에 포함되지 않았는지 확인

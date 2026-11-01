@@ -15,7 +15,7 @@ const files = [
 const required = [...files.slice(0, 4), 'src/types/index.ts', 'package.json'];
 
 try {
-  if (process.argv.length !== 3) throw new Error('사용법: node scripts/install-client.mjs "../pwd-week5"');
+  if (process.argv.length !== 3) throw new Error('사용법: node scripts/install-client.mjs "./client"');
   const target = realpathSync(path.resolve(process.argv[2]));
   if (target === projectRoot || target === sourceRoot || sourceRoot.startsWith(target + path.sep)) {
     throw new Error('5주차 React 클라이언트 폴더를 지정하세요. 7주차 폴더는 대상이 아닙니다.');
@@ -42,8 +42,16 @@ try {
   if (!changed.length) {
     console.log('이미 최신 7주차 연동 파일이 적용되어 있습니다. 변경한 파일이 없습니다.');
   } else {
-    // 백업은 클라이언트 Git 저장소 바깥의 형제 폴더에 두어 실수로 커밋하지 않게 합니다.
-    const backup = mkdtempSync(path.join(path.dirname(target), `.${path.basename(target)}-week7-backup-`));
+    // 7주차 안의 client는 Git에서 제외된 백업 폴더를 사용합니다.
+    const localClient = path.join(projectRoot, 'client');
+    const isLocalClient = existsSync(localClient) && realpathSync(localClient) === target;
+    let backupPrefix = path.join(path.dirname(target), `.${path.basename(target)}-week7-backup-`);
+    if (isLocalClient) {
+      const backupRoot = path.join(projectRoot, '.week7-backups');
+      mkdirSync(backupRoot, { recursive: true });
+      backupPrefix = path.join(backupRoot, 'client-');
+    }
+    const backup = mkdtempSync(backupPrefix);
     const original = new Set(changed.filter((name) => existsSync(path.join(target, name))));
     for (const name of original) {
       mkdirSync(path.dirname(path.join(backup, name)), { recursive: true });
