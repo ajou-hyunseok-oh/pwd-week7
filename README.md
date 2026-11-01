@@ -36,7 +36,7 @@ Service가 SDK로 DB 요청을 보내고, 조회한 행을 Model이 API 응답 �
 
 ### 실습 폴더 열기
 
-이미 강사의 7주차 수정본을 받았다면 그 폴더를 사용합니다. 새로 받을 때는 [강의 저장소](https://github.com/ajou-hyunseok-oh/pwd-week7)를 열어 `Code → Download ZIP`으로 내려받고 압축을 풉니다. Git을 사용하는 학생은 작업할 상위 폴더의 터미널에서 다음 명령으로 복제할 수 있습니다. 기존 pwd-week7 폴더가 있다면 같은 위치에 다시 복제하지 않습니다.
+이미 강사의 7주차 수정본을 받았다면 그 폴더를 사용합니다. [강의 저장소](https://github.com/ajou-hyunseok-oh/pwd-week7)는 비공개이므로 GitHub 접근 권한이 있는 학생만 `Code → Download ZIP`이나 아래 clone을 사용할 수 있습니다. 접근 권한이 없다면 강사가 별도로 제공한 7주차 실습 ZIP을 내려받아 압축을 풉니다. Git을 사용하는 학생은 작업할 상위 폴더의 터미널에서 다음 명령으로 복제할 수 있습니다. 기존 pwd-week7 폴더가 있다면 같은 위치에 다시 복제하지 않습니다.
 
 ```sh
 git clone https://github.com/ajou-hyunseok-oh/pwd-week7.git
