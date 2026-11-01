@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import * as controller from '../controllers/restaurants.controller';
-import { requireAdmin } from '../middleware/admin.middleware';
+import * as restaurantsController from '../controllers/restaurants.controller';
 
 const router = Router();
-router.get('/', controller.getRestaurants);
-router.get('/popular', controller.getPopularRestaurants);
-router.get('/:id', controller.getRestaurant);
-router.post('/', requireAdmin, controller.createRestaurant);
-router.put('/:id', requireAdmin, controller.updateRestaurant);
-router.delete('/:id', requireAdmin, controller.deleteRestaurant);
+
+router.get('/', restaurantsController.getRestaurants);
+router.get('/sync-demo', restaurantsController.getRestaurantsSync);
+router.get('/popular', restaurantsController.getPopularRestaurants);
+router.get('/:id', restaurantsController.getRestaurant);
+router.post('/', restaurantsController.createRestaurant);
+router.post('/reset-demo', restaurantsController.resetDemoData);
+
 export default router;

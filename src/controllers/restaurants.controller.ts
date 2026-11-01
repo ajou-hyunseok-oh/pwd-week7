@@ -1,29 +1,68 @@
-import * as service from '../services/restaurants.service';
+import type { RequestHandler } from 'express';
+import * as restaurantService from '../services/restaurants.service';
+import type { DataResponse, ErrorResponse } from '../types/api.types';
+import type { CreateRestaurantBody, RestaurantData } from '../types/restaurant.types';
 import asyncHandler from '../utils/asyncHandler';
-import HttpError from '../utils/httpError';
 
-// 6주차와 동일하게 컨트롤러는 HTTP 상태/응답, 서비스는 DB 처리와 검증을 담당합니다.
-export const getRestaurants = asyncHandler(async (req, res) => {
-  res.json({ data: await service.getAllRestaurants() });
+type NoParams = Record<string, never>;
+type RestaurantListResponse = DataResponse<RestaurantData[]>;
+
+const normaliseMenu = (menu: unknown): string[] => {
+  if (!menu) return [];
+  if (Array.isArray(menu)) return menu.filter((item): item is string => typeof item === 'string');
+  if (typeof menu === 'string') {
+    return menu
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+export const getRestaurants = asyncHandler<NoParams, RestaurantListResponse>(async (req, res) => {
+  const restaurants = await restaurantService.getAllRestaurants();
+  res.json({ data: restaurants });
 });
-export const getPopularRestaurants = asyncHandler(async (req, res) => {
-  res.json({ data: await service.getPopularRestaurants(req.query.limit ?? 5) });
+
+export const getRestaurantsSync: RequestHandler<NoParams, RestaurantListResponse> = (req, res) => {
+  const restaurants = restaurantService.getAllRestaurantsSync();
+  res.json({
+    data: restaurants,
+    meta: {
+      execution: 'synchronous'
+    }
+  });
+};
+
+export const getRestaurant = asyncHandler<{ id: string }, DataResponse<RestaurantData> | ErrorResponse>(async (req, res) => {
+  const restaurant = await restaurantService.getRestaurantById(req.params.id);
+
+  if (!restaurant) {
+    res.status(404).json({ error: { message: 'Restaurant not found' } });
+    return;
+  }
+
+  res.json({ data: restaurant });
 });
-export const getRestaurant = asyncHandler(async (req, res) => {
-  const item = await service.getRestaurantById(req.params.id);
-  if (!item) throw new HttpError(404, 'Restaurant not found');
-  res.json({ data: item });
+
+export const getPopularRestaurants = asyncHandler<NoParams, RestaurantListResponse, unknown, { limit?: string }>(async (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 5;
+  const restaurants = await restaurantService.getPopularRestaurants(limit);
+  res.json({ data: restaurants });
 });
-export const createRestaurant = asyncHandler(async (req, res) => {
-  res.status(201).json({ data: await service.createRestaurant(req.body) });
+
+export const createRestaurant = asyncHandler<NoParams, DataResponse<RestaurantData>, CreateRestaurantBody | undefined>(async (req, res) => {
+  const payload = {
+    ...req.body,
+    recommendedMenu: normaliseMenu(req.body?.recommendedMenu)
+  };
+
+  const restaurant = await restaurantService.createRestaurant(payload);
+  res.status(201).json({ data: restaurant });
 });
-export const updateRestaurant = asyncHandler(async (req, res) => {
-  const item = await service.updateRestaurant(req.params.id, req.body);
-  if (!item) throw new HttpError(404, 'Restaurant not found');
-  res.json({ data: item });
-});
-export const deleteRestaurant = asyncHandler(async (req, res) => {
-  const item = await service.deleteRestaurant(req.params.id);
-  if (!item) throw new HttpError(404, 'Restaurant not found');
-  res.status(204).send();
+
+export const resetDemoData = asyncHandler<NoParams, RestaurantListResponse>(async (req, res) => {
+  await restaurantService.resetStore();
+  const restaurants = await restaurantService.getAllRestaurants();
+  res.json({ data: restaurants });
 });

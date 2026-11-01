@@ -11,8 +11,21 @@
     "forceConsistentCasingInFileNames": true,
     "noEmitOnError": true,
     "sourceMap": true,
-    "types": ["node", "jest", "emscripten"]
+    "types": [
+      "node",
+      "jest",
+      "emscripten"
+    ]
   },
-  "include": ["server.ts", "src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist", "coverage"]
+  "include": [
+    "server.ts",
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
 }
