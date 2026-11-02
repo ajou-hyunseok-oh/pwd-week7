@@ -1,4 +1,4 @@
-# FoodMap API — Supabase 데이터 영구 저장 실습
+# Ajou FoodMap API - Supabase 데이터베이스 구축
 
 > TypeScript·Express로 맛집 API를 구현하고 Supabase PostgreSQL에 데이터를 저장합니다.
 
